@@ -20,25 +20,28 @@ class D3jsCharts {
 
   async loadCSV(filePath) {
     this.data = await d3.csv(filePath, d => ({
-      category: d["Sub-Category"],
-      sales: +d.Sales,
-      profit: +d.Profit,
-      region: d.Region,
-      quantity: +d.Quantity,
+      gender: d.gender,
+      race: d["race/ethnicity"],
+      education: d["parental level of education"],
+      lunch: d.lunch,
+      preparation: d["test preparation course"],
+      math: +d["math score"],
+      reading: +d["reading score"],
+      writing: +d["writing score"]
     }));
   }
 
   renderBarChart() {
     const groupedData = d3.rollup(
       this.data,
-      v => d3.sum(v, d => d.sales),
-      d => d.category
+      v => d3.mean(v, d => d.math),
+      d => d.gender
     );
 
-    const data = Array.from(groupedData, ([category, value]) => ({ category, value }));
+    const data = Array.from(groupedData, ([gender, value]) => ({ gender, value }));
 
     const x = d3.scaleBand()
-      .domain(data.map(d => d.category))
+      .domain(data.map(d => d.gender))
       .range([0, this.width - this.margins.left - this.margins.right])
       .padding(0.1);
 
@@ -50,7 +53,7 @@ class D3jsCharts {
       .selectAll("rect")
       .data(data)
       .join("rect")
-      .attr("x", d => x(d.category))
+      .attr("x", d => x(d.gender))
       .attr("y", d => y(d.value))
       .attr("width", x.bandwidth())
       .attr("height", d => y(0) - y(d.value))
@@ -63,35 +66,34 @@ class D3jsCharts {
     this.svg.append("g")
       .call(d3.axisLeft(y));
 
-    // Rótulos dos eixos
     this.svg.append("text")
       .attr("x", (this.width - this.margins.left - this.margins.right) / 2)
       .attr("y", this.height - this.margins.bottom + 30)
       .attr("text-anchor", "middle")
-      .text("Sub-Category");
+      .text("Gender");
 
     this.svg.append("text")
       .attr("transform", "rotate(-90)")
       .attr("x", -(this.height - this.margins.top - this.margins.bottom) / 2)
       .attr("y", -this.margins.left + 10)
       .attr("text-anchor", "middle")
-      .text("Sales");
+      .text("Average Math Score");
   }
 
   renderScatterPlot() {
     const x = d3.scaleLinear()
-      .domain(d3.extent(this.data, d => d.sales))
+      .domain(d3.extent(this.data, d => d.math))
       .range([0, this.width - this.margins.left - this.margins.right]);
 
     const y = d3.scaleLinear()
-      .domain(d3.extent(this.data, d => d.profit))
+      .domain(d3.extent(this.data, d => d.reading))
       .range([this.height - this.margins.top - this.margins.bottom, 0]);
 
     this.svg.selectAll("circle")
       .data(this.data)
       .join("circle")
-      .attr("cx", d => x(d.sales))
-      .attr("cy", d => y(d.profit))
+      .attr("cx", d => x(d.math))
+      .attr("cy", d => y(d.reading))
       .attr("r", 5)
       .attr("fill", "orange");
 
@@ -102,55 +104,54 @@ class D3jsCharts {
     this.svg.append("g")
       .call(d3.axisLeft(y));
 
-    // Rótulos dos eixos
     this.svg.append("text")
       .attr("x", (this.width - this.margins.left - this.margins.right) / 2)
       .attr("y", this.height - this.margins.bottom + 30)
       .attr("text-anchor", "middle")
-      .text("Sales");
+      .text("Math Score");
 
     this.svg.append("text")
       .attr("transform", "rotate(-90)")
       .attr("x", -(this.height - this.margins.top - this.margins.bottom) / 2)
       .attr("y", -this.margins.left + 10)
       .attr("text-anchor", "middle")
-      .text("Profit");
+      .text("Reading Score");
   }
 
   renderHeatmap() {
     const groupedData = d3.rollup(
       this.data,
-      v => d3.sum(v, d => d.sales),
-      d => d.region,
-      d => d.category
+      v => d3.mean(v, d => d.writing),
+      d => d.gender,
+      d => d.race
     );
 
-    const regions = Array.from(groupedData.keys());
-    const categories = Array.from(new Set(this.data.map(d => d.category)));
+    const genders = Array.from(groupedData.keys());
+    const races = Array.from(new Set(this.data.map(d => d.race)));
 
     const x = d3.scaleBand()
-      .domain(regions)
+      .domain(genders)
       .range([0, this.width - this.margins.left - this.margins.right])
       .padding(0.1);
 
     const y = d3.scaleBand()
-      .domain(categories)
+      .domain(races)
       .range([this.height - this.margins.top - this.margins.bottom, 0])
       .padding(0.1);
 
     const color = d3.scaleSequential()
-      .domain([0, d3.max(this.data, d => d.sales)])
+      .domain([0, d3.max(this.data, d => d.writing)])
       .interpolator(d3.interpolateBlues);
 
-    const data = Array.from(groupedData, ([region, categoryMap]) =>
-      Array.from(categoryMap, ([category, value]) => ({ region, category, value }))
+    const data = Array.from(groupedData, ([gender, raceMap]) =>
+      Array.from(raceMap, ([race, value]) => ({ gender, race, value }))
     ).flat();
 
     this.svg.selectAll("rect")
       .data(data)
       .join("rect")
-      .attr("x", d => x(d.region))
-      .attr("y", d => y(d.category))
+      .attr("x", d => x(d.gender))
+      .attr("y", d => y(d.race))
       .attr("width", x.bandwidth())
       .attr("height", y.bandwidth())
       .attr("fill", d => color(d.value));
@@ -162,24 +163,23 @@ class D3jsCharts {
     this.svg.append("g")
       .call(d3.axisLeft(y));
 
-    // Rótulos dos eixos
     this.svg.append("text")
       .attr("x", (this.width - this.margins.left - this.margins.right) / 2)
       .attr("y", this.height - this.margins.bottom + 30)
       .attr("text-anchor", "middle")
-      .text("Region");
+      .text("Gender");
 
     this.svg.append("text")
       .attr("transform", "rotate(-90)")
       .attr("x", -(this.height - this.margins.top - this.margins.bottom) / 2)
       .attr("y", -this.margins.left + 10)
       .attr("text-anchor", "middle")
-      .text("Category");
+      .text("Race/Ethnicity");
   }
 }
 
 async function main() {
-  const filePath = "superstore.csv";
+  const filePath = "StudentsPerformance.csv";
 
   const barChart = new D3jsCharts("#barChart");
   await barChart.loadCSV(filePath);
